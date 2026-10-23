@@ -6,15 +6,23 @@ Flask/Jinja, MySQL, PyMySQL, plain CSS, and minimal JavaScript.
 
 Shared setup includes the app factory, configuration, database helper,
 registration/login/logout, CSRF protection, server-side sessions, and the
-Lab 2 light/dark design. Books/authors modules and Problem 2 SQL remain empty.
-The signed-in home is a welcome screen until those modules are implemented.
+Lab 2 light/dark design. Moustafa's authenticated books CRUD, cover lifecycle,
+shared image helper, BOOK SQL/seeds, and tests are implemented. Home links to books.
+Ibrahim's author feature, AUTHOR SQL/seeds, production media route, global upload
+configuration/413 recovery, and shared image styles remain pending.
+
+On 2026-10-23, the local `library` database was created without resetting data;
+both configured connections passed `check-db`. It has no tables yet: live book
+pages return a recovery page until AUTHOR and BOOK setup is complete. Real book
+SQL, CRUD, and browser checks passed using disposable databases and AUTHOR fixtures.
 
 ## Implementation documents
 
 Read [the library and image-bonus plan](docs/plan.md),
 [team ownership](docs/work_split.md), and
-[the implementation checklist](docs/checklist.md). The bonus is planned;
-uploads and the Pillow dependency have not been implemented or installed yet.
+[the implementation checklist](docs/checklist.md). Pillow 13.0.0 is pinned and
+the shared image helper is implemented. The plan describes joint behavior;
+the checklist distinguishes this completed work from pending integration.
 
 ## Run locally
 
@@ -27,14 +35,20 @@ uploads and the Pillow dependency have not been implemented or installed yet.
 
 2. Prepare `website/.env`. If it does not exist, copy `website/.env.example`.
    Set your MySQL credentials and a random `SECRET_KEY`. Existing local values
-   must be kept private. `DB_NAME=library` is the future catalog database;
+   must be kept private. `DB_NAME=library` is the catalog database;
    `AUTH_DB_NAME=registration` reuses Lab 2 accounts on the same MySQL server.
    Environment variables override `.env`. No file depends on the launch folder.
 
 3. Start MySQL. Existing Lab 2 users work without migration. On a new instance,
    execute `website/database/auth.sql` in DBeaver to create `registration.users`.
    This optional script does not drop databases or create to-do tables.
-   `problem2_DDL.sql` is still empty, so the library database is not created yet.
+   For the catalog, create `library` without dropping existing data. Coordinate
+   `problem2_DDL.sql` with Ibrahim: his InnoDB AUTHOR definition (signed INT
+   `author_id` primary key) must run before the supplied BOOK definition.
+   His author seeds with IDs **1, 2, 3** must run before the six illustrative
+   book seeds in `problem2_DML.sql`. These are run-once seeds, not a reset or
+   migration script; check existing tables/rows before execution. If the tables
+   already exist, review additive changes instead of recreating them.
 
 4. Start the local application from the repository root:
 
@@ -54,8 +68,9 @@ uploads and the Pillow dependency have not been implemented or installed yet.
    ```
 
    Unit tests mock MySQL and use temporary session storage. `check-db` only
-   runs `SELECT 1`, checking authentication first and then the library. Until
-   the library SQL is implemented and executed, its connection check will fail.
+   runs `SELECT 1`, checking authentication first and then the library. It does
+   not verify that AUTHOR or BOOK exists. Book integration tests below use
+   real MySQL and disposable fixtures instead of mocking the database.
 
 ## Team ownership
 
@@ -81,8 +96,9 @@ service, and checks the shared pages with Chrome at desktop/mobile sizes.
 It needs no private `.env` or repository secrets. The browser test tool is
 installed only on the CI runner; it is not a Python application dependency.
 
-The normal local unittest command skips the two opt-in MySQL tests. To include
-them, set `RUN_MYSQL_TESTS=1`, `MYSQL_TEST_USER`, and `MYSQL_TEST_PASSWORD`;
+The normal local unittest command skips five opt-in MySQL tests (two setup,
+three books). To include the original setup tests, set `RUN_MYSQL_TESTS=1`,
+`MYSQL_TEST_USER`, and `MYSQL_TEST_PASSWORD`;
 optionally set `MYSQL_TEST_HOST` and `MYSQL_TEST_PORT`. The account must be able
 to create/drop uniquely generated `library_setup_test_*` databases. Scripts are
 rewritten to those database names; existing application databases are preserved.
@@ -93,12 +109,80 @@ an existing Playwright installation through `NODE_PATH`. It starts and stops a
 temporary server and uses temporary session files without connecting to MySQL.
 Read [the setup and plan audit](docs/audit.md) for findings, evidence, and limits.
 
+### Book verification and demonstration
+
+1. Run book MySQL checks using the existing private connection settings:
+
+   ```powershell
+   $env:RUN_BOOK_MYSQL_TESTS='1'
+   .\.venv\Scripts\python.exe -m unittest discover -s website/tests -t website
+   .\.venv\Scripts\python.exe -m pip check
+   ```
+
+   Only generated `library_books_test_<uuid>` databases are created/dropped.
+   The account needs CREATE/DROP DATABASE privileges. Optional `MYSQL_TEST_HOST`,
+   `MYSQL_TEST_PORT`, `MYSQL_TEST_USER`, and `MYSQL_TEST_PASSWORD` override the
+   connection for tests. Never put private settings in a committed command/file.
+   This command does not enable the separate company tests.
+
+2. With Chrome and an existing Playwright installation available via `NODE_PATH`,
+   run `.\.venv\Scripts\python.exe website/tests/browser_books.py` with the
+   same opt-in flag. This starts/stops a local fixture server and verifies book
+   pages in both themes at 1366px/360px, upload/retention/delete, and a no-JavaScript
+   create. Its login/media endpoints exist only in the fixture server.
+   Screenshots are saved under ignored `website/instance/book-checks/`.
+
+3. After Ibrahim's database prerequisites are ready, log in, choose **Browse
+   books**, add a book, edit without selecting a cover, replace its cover, and
+   delete it through the confirmation form. Before `media.image` is registered,
+   stored covers show **Cover preview awaiting media integration**. The seeded
+   book titles are illustrative fixtures; coordinate final catalog content.
+
+### Image helper handoff
+
+`app.images.save_image(upload, kind)` returns a generated 36-character JPEG
+basename; `delete_image(filename, kind)` removes it and tolerates missing files.
+Kinds are exactly `books` and `authors`. Invalid content/kinds/names raise
+`ValueError`; disk failures raise `OSError`. The default root is
+`website/instance/uploads/`; tests can set `UPLOAD_ROOT` to a temporary directory.
+Never pass a browser-supplied path into storage or serving.
+
+JPG/JPEG, PNG, and WebP must match their decoded format. The helper rejects
+empty/corrupt/animated images, files over 5 MiB, images over 20 million pixels,
+and decompression-bomb warnings/errors. It applies EXIF orientation, fits within
+1600 x 1600 without upscaling, composites transparency onto white, and atomically
+stores a fresh RGB JPEG at quality 85 without copied metadata.
+
+Ibrahim must register authenticated `media.image` at
+`/media/<kind>/<filename>` with strict kind/basename validation, JPEG/nosniff
+headers, and safe serving. He also supplies `MAX_CONTENT_LENGTH=6 * 1024 * 1024`,
+413 recovery, author-photo/cascaded-cover cleanup, and shared image/table styles.
+The helper's file limit is enforced, but the production whole-request limit
+and media access checks remain pending. Book-specific markup currently reuses
+the existing theme and contains its table scrolling and image sizing.
+
+Book routes lock current records on writes, commit SQL before deleting old
+covers, and remove new files on rollback. Post-commit cleanup is best effort
+and logs failures. MySQL/filesystem operations are not one atomic transaction:
+a crash, ambiguous connection loss during commit, or cleanup failure can leave
+orphaned/missing files. Back up database/uploads together. For reconciliation,
+compare stored BOOK.cover_filename and AUTHOR.photo_filename values with the
+two upload folders, review differences, and only then remove confirmed orphans.
+No automatic cleanup worker is included.
+
+Local verification on 2026-10-23: 32 tests passed, two original setup MySQL tests
+were skipped; three book MySQL tests actually ran. Dependency checks and book
+desktop/mobile browser checks passed, including keyboard focus and missing-image
+fallback; the original shared browser checks passed too. CI opts into book MySQL/browser
+checks too; hosted CI has not been run in this session.
+
 ## Problem 1
 
 `problem1_DDL.sql` defines COMPANY and `problem1_DML.sql` inserts three rows in
 each table. **The DDL drops and recreates `company`; executing it destroys any
 existing data in that database.** Run DDL before DML only when that reset is
-intended. `problem1_Answers.txt` is still an empty placeholder.
+intended. `problem1_Answers.txt` contains the separate exercise answers;
+Problem 1 files were preserved during the books implementation.
 
 Private `.env`, local sessions, `AGENTS.md`, and `design.md` are Git-ignored.
 Do not copy environment files or session storage from Lab 2.

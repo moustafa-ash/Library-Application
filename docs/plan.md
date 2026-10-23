@@ -1,6 +1,9 @@
 # Library application and image bonus plan
 
-**Status:** planning only; this document does not authorize implementation.
+**Status (2026-10-23):** Moustafa's books/helper implementation was explicitly
+authorized and completed within his scope; see [checklist.md](checklist.md) for
+current evidence and pending Ibrahim integration. Starting-point statements
+below describe the original design baseline, not the current implementation.
 
 **Goal:** finish Part II's books/authors CRUD, then support optional book covers
 and author photos without changing the existing authentication system.

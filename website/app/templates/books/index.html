@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% from "books/_cover.html" import cover %}
+{% block title %}Books{% endblock %}
+{% block content %}
+<h1>Books</h1>
+<p class="form-intro">The shared library collection.</p>
+<div class="recovery-actions">
+    <a class="button button-primary" href="{{ url_for('books.form') }}">Add book</a>
+    <a class="button button-outline" href="{{ url_for('home') }}">Home</a>
+</div>
+{% if books %}
+<div tabindex="0" role="region" aria-label="Books table; scroll horizontally on small screens" style="overflow-x: auto; margin-top: 24px;">
+    <table style="width: 100%; text-align: left; border-spacing: 12px;">
+        <caption class="visually-hidden">Shared books and their author IDs</caption>
+        <thead><tr><th scope="col">Cover</th><th scope="col">Book ID</th><th scope="col">Title</th><th scope="col">Price</th><th scope="col">Author ID</th><th scope="col">Actions</th></tr></thead>
+        <tbody>{% for book in books %}<tr>
+            <td>{{ cover(book, media_available) }}</td><td>{{ book.book_id }}</td><td style="overflow-wrap: anywhere;">{{ book.title }}</td>
+            <td>{{ '%.2f'|format(book.price) }}</td><td>{{ book.author_id }}</td>
+            <td><a class="button button-outline" href="{{ url_for('books.form', book_id=book.book_id) }}" aria-label="Edit {{ book.title }}">Edit</a>
+                <a class="button button-delete" href="{{ url_for('books.delete', book_id=book.book_id) }}" aria-label="Delete {{ book.title }}">Delete</a></td>
+        </tr>{% endfor %}</tbody>
+    </table>
+</div>
+{% else %}<p class="field-help">No books yet. Add a book after an author is available.</p>{% endif %}
+{% endblock %}

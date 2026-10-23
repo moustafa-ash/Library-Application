@@ -1,0 +1,13 @@
+{% macro cover(book, media_available, large=false) %}
+{% if book.cover_filename %}
+    {% if media_available %}
+        <img src="{{ url_for('media.image', kind='books', filename=book.cover_filename) }}"
+             alt="No cover available for {{ book.title }}" width="{{ 160 if large else 48 }}" height="{{ 213 if large else 64 }}"
+             style="object-fit: contain; max-width: 100%;">
+    {% else %}
+        <span>Cover preview awaiting media integration</span>
+    {% endif %}
+{% else %}
+    <span>No cover</span>
+{% endif %}
+{% endmacro %}

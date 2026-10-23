@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Delete book{% endblock %}
+{% block content %}
+<section class="error-sheet" aria-labelledby="delete-heading">
+    <h1 id="delete-heading">Delete book?</h1>
+    <p>Delete “{{ book.title }}” (ID {{ book.book_id }}) and its cover? This cannot be undone.</p>
+    <ul class="form-errors" role="alert">{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul>
+    <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="recovery-actions"><button class="button button-danger" type="submit">Delete book</button><a class="button button-outline" href="{{ url_for('books.index') }}">Cancel</a></div>
+    </form>
+</section>
+{% endblock %}
