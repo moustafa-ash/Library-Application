@@ -1,9 +1,9 @@
 # Implementation and evidence checklist
 
 Use [plan.md](plan.md) for behavior and [work_split.md](work_split.md) for owners.
-Checked items below are prior completed setup reported in this session and
-confirmed by the current files. They are not fresh test results from this
-documentation-only update. Every unchecked item is future work.
+Evidence below was refreshed on 2026-10-23 for Moustafa's implementation.
+Unchecked combined items still depend on Ibrahim's work; see the evidence table
+for the book-only portions that passed against disposable AUTHOR fixtures.
 
 ## Existing shared setup
 
@@ -23,19 +23,19 @@ documentation-only update. Every unchecked item is future work.
 
 ## Shared image foundation
 
-- [ ] Approve/install Pillow and update the existing requirements; create and test the one shared image helper.
+- [x] Approve/install Pillow and update the existing requirements; create and test the one shared image helper.
 - [ ] Enforce actual-format checks, 5 MiB/file, 6 MiB/request, 20,000,000 pixels, and rejection of corrupt/animated/unsupported uploads.
-- [ ] Normalize to metadata-free RGB JPEG, at most 1600 x 1600px, using generated filenames under the ignored upload root.
+- [x] Normalize to metadata-free RGB JPEG, at most 1600 x 1600px, using generated filenames under the ignored upload root.
 - [ ] Add authenticated safe media serving and the 413 recovery page; verify traversal and unauthenticated-access rejection.
-- [ ] Verify missing files, disk errors, SQL rollback, and retained existing images on failed replacements.
+- [x] Verify helper/book missing files, disk errors, SQL rollback, and retained existing images on failed replacements. Author behavior remains pending.
 
 ## Moustafa: books and covers
 
-- [ ] Add nullable `cover_filename` to BOOK and retain NULL filenames in seed rows.
-- [ ] Add optional cover inputs, current-image previews, accessible thumbnails, and readable fallbacks.
-- [ ] Verify create with/without cover and edit without a new file, preserving the existing cover.
-- [ ] Verify replacement, book deletion, invalid-author rejection, and file cleanup after failed SQL.
-- [ ] Record passing book/helper tests and one real cover-upload demonstration.
+- [x] Add nullable `cover_filename` to BOOK and retain NULL filenames in seed rows; verified on disposable MySQL.
+- [x] Add optional cover inputs, current-image previews, accessible thumbnails, and readable fallbacks; production preview awaits media endpoint.
+- [x] Verify create with/without cover and edit without a new file, preserving the existing cover.
+- [x] Verify replacement, book deletion, invalid-author rejection, and file cleanup after failed SQL.
+- [x] Record passing book/helper tests and a real MySQL cover-upload demonstration using a test-only media endpoint.
 
 ## Ibrahim: authors and photos
 
@@ -47,7 +47,7 @@ documentation-only update. Every unchecked item is future work.
 
 ## Joint acceptance and handoff
 
-- [ ] Run the full unit suite and `pip check` in the project `.venv`; record results below.
+- [x] Run the full discovered suite with book MySQL enabled and `pip check`; results below distinguish skipped setup tests.
 - [ ] Run the real MySQL cascade test using disposable rows/database and temporary uploads; prove unrelated data is preserved.
 - [ ] Check desktop and 360px mobile, both themes, keyboard use, table scrolling, errors, missing images, and no-JavaScript forms.
 - [ ] Update README with setup, upload limits, local storage/backup, new-database scripts, and demo steps; keep credentials/uploads out of Git.
@@ -57,8 +57,26 @@ documentation-only update. Every unchecked item is future work.
 
 | Check | Result | Evidence |
 | --- | --- | --- |
-| Core library CRUD | Not implemented | Feature modules and Problem 2 SQL are empty at planning time. |
-| Bonus unit/integration tests | Not implemented | No upload helper, media route, or bonus tests exist yet. |
-| MySQL cascade and file cleanup | Not run | Requires core tables plus the upload implementation. |
-| Bonus desktop/mobile review | Not run | No bonus UI has been implemented. |
-| Final demo | Not run | Add real screenshots/test output after implementation. |
+| Books SQL and CRUD | Passed on disposable MySQL | `test_books_mysql.py`: supplied BOOK scripts, six seeds, real create/edit/unchanged edit/delete, author rejection; AUTHOR is a test fixture. |
+| Book/helper regression suite | Passed | With `RUN_BOOK_MYSQL_TESTS=1`: 34 discovered, 32 passed, two original setup MySQL tests skipped. `pip check`: no broken requirements. |
+| Local connections | Passed | Both `check-db` SELECT checks passed. Live `library` created without resetting data; no live tables because AUTHOR work remains pending. |
+| MySQL cascade and file cleanup | Partial | Real FK rejection and cascading BOOK rows verified, with four unrelated seeded books retained. Book-cover replacement/deletion cleanup passed. Author-photo/cascaded-cover cleanup remains pending. |
+| Book desktop/mobile review | Passed with fixtures | Chrome at 1366px/360px, both themes, upload/retention/delete, keyboard focus, missing-image fallback, no-JavaScript create, no JS errors. Original shared browser checks passed too. Production media is not implemented. |
+| Cover demo evidence | Fixture demo passed | Visually inspected `website/instance/book-checks/mobile-dark-edit.png` and `desktop-light-edit.png`; real MySQL with test-only login/media routes. |
+| Shared upload integration | Pending Ibrahim | Actual file checks, 5 MiB, 20-million pixels, normalized output tested. 6 MiB request limit, 413, production serving, author photos and shared styles not implemented. |
+| CI | Configured, not run remotely | Workflow enables book MySQL tests and book browser checks; local checks passed. |
+
+## Handoff / remaining prerequisites
+
+1. Ibrahim supplies AUTHOR DDL before BOOK and author seeds with IDs 1, 2, 3
+   before the illustrative book seeds. Coordinate one editor for shared SQL.
+2. The image helper is ready for both kinds. Upload root defaults to the
+   instance uploads directory; `UPLOAD_ROOT` can override it for tests/config.
+3. Ibrahim supplies `media.image`, request configuration/413, shared image
+   styles, author UI/photos and cascade-file cleanup. Book previews detect
+   endpoint registration and otherwise render an explicit integration fallback.
+4. README contains setup, test commands, book demo, image limits/storage,
+   backup/reconciliation notes. Joint final demo remains unchecked.
+5. Problem 1 files, Lab 2 data, private `.env`, and Ibrahim's feature files were
+   preserved. The PDF's individual-work wording and the two-person project plan
+   remain a recorded mismatch; no instructor approval is asserted.

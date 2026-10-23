@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% from "books/_cover.html" import cover %}
+{% block title %}{{ 'Edit' if book else 'Add' }} book{% endblock %}
+{% block content %}
+<section class="error-sheet" aria-labelledby="book-heading">
+    <h1 id="book-heading">{{ 'Edit' if book else 'Add' }} book</h1>
+    <p>Enter the book details and choose its author.</p>
+    {% if book %}{{ cover(book, media_available, large=true) }}{% endif %}
+    <form method="post" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="field"><label for="title">Title</label><input id="title" name="title" maxlength="255" required value="{{ request.form.get('title', book.title if book else '') }}"></div>
+        <div class="field"><label for="price">Price</label><input id="price" name="price" type="number" min="0" max="99999999.99" step="0.01" required value="{{ request.form.get('price', book.price if book else '') }}"></div>
+        <div class="field"><label for="author_id">Author</label>
+            {% set selected = request.form.get('author_id', book.author_id|string if book else '') %}
+            <select id="author_id" name="author_id" required style="min-height: 48px; width: 100%; font: inherit; color: var(--ink); background: var(--sheet);">
+                <option value="">Choose an author</option>
+                {% for author in authors %}<option value="{{ author.author_id }}"{% if selected == author.author_id|string %} selected{% endif %}>{{ author.name }} (ID {{ author.author_id }})</option>{% endfor %}
+            </select>
+            {% if not authors %}<p class="field-help">No authors are available. Complete the author setup first.</p>{% endif %}
+        </div>
+        <div class="field"><label for="cover">Cover (optional)</label><input id="cover" name="cover" type="file" accept=".jpg,.jpeg,.png,.webp" aria-describedby="cover-help">
+            <p id="cover-help" class="field-help">JPG, PNG, or WebP; at most 5 MiB and 20 million pixels. Leave empty to keep an existing cover. After an error, select the file again.</p>
+        </div>
+        <ul class="form-errors" role="alert">{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul>
+        <div class="recovery-actions"><button class="button button-primary" type="submit">Save book</button><a class="button button-outline" href="{{ url_for('books.index') }}">Cancel</a></div>
+    </form>
+</section>
+{% endblock %}

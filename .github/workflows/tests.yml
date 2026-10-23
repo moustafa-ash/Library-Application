@@ -40,6 +40,7 @@ jobs:
       - name: Unit and real MySQL tests
         env:
           RUN_MYSQL_TESTS: '1'
+          RUN_BOOK_MYSQL_TESTS: '1'
           MYSQL_TEST_HOST: 127.0.0.1
           MYSQL_TEST_PORT: '3306'
           MYSQL_TEST_USER: root
@@ -54,3 +55,11 @@ jobs:
           echo "NODE_PATH=$RUNNER_TEMP/library-browser/node_modules" >> "$GITHUB_ENV"
       - name: Desktop and mobile browser checks
         run: python website/tests/browser.py
+      - name: Books desktop and mobile browser checks
+        env:
+          RUN_BOOK_MYSQL_TESTS: '1'
+          MYSQL_TEST_HOST: 127.0.0.1
+          MYSQL_TEST_PORT: '3306'
+          MYSQL_TEST_USER: root
+          MYSQL_TEST_PASSWORD: ci-test-password
+        run: python website/tests/browser_books.py

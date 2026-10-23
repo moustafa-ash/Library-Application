@@ -7,6 +7,7 @@ from flask_session import Session
 
 from . import db
 from .auth import auth, login_required
+from .books import books
 from .config import load_config, validate_config
 
 
@@ -24,6 +25,7 @@ def create_app(test_config=None):
     Session(app)
     db.init_app(app)
     app.register_blueprint(auth)
+    app.register_blueprint(books)
 
     @app.before_request
     def check_csrf_token():
