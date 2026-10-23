@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Create an account{% endblock %}
+{% block page_class %}auth-page{% endblock %}
+{% block content %}
+<section class="auth-shell" aria-labelledby="register-heading">
+    <div class="auth-intro">
+        <h2>Make room for<br>your next chapter.</h2>
+        <p>Join your shared library to keep books and their authors organized.</p>
+        <div class="intro-bottom"><span class="intro-rule"></span><p>Books and authors.<br>Connected from the start.</p></div>
+    </div>
+    <div class="auth-panel">
+        <h1 id="register-heading">Create an account</h1>
+        <p class="form-intro">Your library account starts here.</p>
+        <form method="post" action="{{ url_for('auth.register') }}" data-auth="register">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <div class="field"><label for="name">Name</label><input id="name" name="name" type="text" autocomplete="name" maxlength="100" required value="{{ request.form.get('name', '') }}"></div>
+            <div class="field"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" maxlength="255" required value="{{ request.form.get('email', '') }}"></div>
+            <div class="field"><label for="password">Password</label><input id="password" name="password" type="password" autocomplete="new-password" required aria-describedby="password-help"><p id="password-help" class="field-help">Up to 72 UTF-8 bytes; some characters use more than one byte.</p></div>
+            <div class="field"><label for="confirm_password">Confirm password</label><input id="confirm_password" name="confirm_password" type="password" autocomplete="new-password" required></div>
+            <ul id="form-errors" class="form-errors" role="alert">{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul>
+            <button class="button button-primary button-full" type="submit">Create account</button>
+        </form>
+        <p class="form-switch">Already have an account? <a href="{{ url_for('auth.login') }}">Log in</a></p>
+    </div>
+</section>
+{% endblock %}

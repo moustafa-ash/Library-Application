@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}{{ code }} · {{ heading }}{% endblock %}
+{% block page_class %}error-page{% endblock %}
+{% block content %}
+<section class="error-sheet" aria-labelledby="error-heading">
+    <svg class="error-icon" viewBox="0 0 32 32" width="48" height="48" fill="none" aria-hidden="true"><rect x="6" y="3" width="20" height="26" rx="4" stroke="currentColor" stroke-width="2"/><path d="M12 12h8m-8 6h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    <h1 id="error-heading">{{ heading }}</h1><p>{{ message }}</p>
+    <a class="button button-primary" href="{{ url_for('home') if session.get('user_id') else url_for('auth.login') }}">{{ 'Back to library' if session.get('user_id') else 'Back to login' }}</a>
+</section>
+{% endblock %}

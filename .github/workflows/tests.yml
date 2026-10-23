@@ -1,0 +1,56 @@
+name: Setup tests
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [init-setup, main]
+
+permissions:
+  contents: read
+
+jobs:
+  setup-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ci-test-password
+          MYSQL_ROOT_HOST: '%'
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -pci-test-password"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+          cache: pip
+          cache-dependency-path: website/requirements.txt
+      - name: Install Python dependencies
+        run: python -m pip install -r website/requirements.txt
+      - name: Check dependencies
+        run: python -m pip check
+      - name: Unit and real MySQL tests
+        env:
+          RUN_MYSQL_TESTS: '1'
+          MYSQL_TEST_HOST: 127.0.0.1
+          MYSQL_TEST_PORT: '3306'
+          MYSQL_TEST_USER: root
+          MYSQL_TEST_PASSWORD: ci-test-password
+        run: python -m unittest discover -s website/tests -t website -v
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser test tool
+        run: |
+          npm install --prefix "$RUNNER_TEMP/library-browser" --no-save playwright@1.62.1
+          echo "NODE_PATH=$RUNNER_TEMP/library-browser/node_modules" >> "$GITHUB_ENV"
+      - name: Desktop and mobile browser checks
+        run: python website/tests/browser.py
