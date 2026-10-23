@@ -1,0 +1,35 @@
+Run Q1.1 and Q1.2 after the DDL and seed scripts, using USE company;
+
+Q1.1
+INSERT INTO DEPARTMENT (Dnumber, Dname, mgr_ssn, mgr_start_date)
+VALUES (4, 'Support', '100000001', '2026-01-01');
+DELETE FROM EMPLOYEE WHERE ssn = '100000001';
+
+The department is added. MySQL rejects the deletion because the employee
+is a department manager. ON DELETE RESTRICT protects the reference.
+Expected result: INSERT succeeds; DELETE gives error 1451.
+
+Q1.2
+INSERT INTO PROJECT (Pnumber, Pname, Plocation, Dno)
+VALUES (104, 'New Project', 'Alexandria', 999);
+
+MySQL rejects the insert because department 999 does not exist.
+The foreign key requires an existing department, so no project is added.
+Expected result: error 1452.
+
+Q1.3
+We cannot insert the first row while both foreign keys are active and
+both fields are NOT NULL. Each row needs the other row to exist first.
+
+During the initial empty database setup, create both tables but delay
+the manager foreign key. Insert the department, then its employee:
+
+INSERT INTO DEPARTMENT (Dnumber, Dname, mgr_ssn, mgr_start_date)
+VALUES (1, 'Engineering', '100000001', '2026-01-01');
+INSERT INTO EMPLOYEE (ssn, fname, lname, bdate, address, gender, salary, Dno)
+VALUES ('100000001', 'Ali', 'Hassan', '2000-01-01', 'Alexandria', 'M', 15000, 1);
+ALTER TABLE DEPARTMENT ADD CONSTRAINT fk_department_manager
+FOREIGN KEY (mgr_ssn) REFERENCES EMPLOYEE (ssn);
+
+Both rows now exist, so adding the missing foreign key succeeds.
+This example needs the initial setup described above, not the seeded tables.
