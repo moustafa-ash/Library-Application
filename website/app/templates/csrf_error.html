@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Reopen the form{% endblock %}
+{% block page_class %}error-page{% endblock %}
+{% block content %}
+<section class="error-sheet" aria-labelledby="error-heading">
+    <svg class="error-icon" viewBox="0 0 32 32" width="48" height="48" fill="none" aria-hidden="true"><path d="M26 12a11 11 0 1 0 1 9M26 5v8h-8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <h1 id="error-heading">Please reopen the form</h1>
+    <p role="alert">This form is no longer valid. Reopen the page and try again.</p>
+    <div class="recovery-actions"><a class="button button-primary" href="{{ url_for('home') if session.get('user_id') else url_for('auth.login') }}">{{ 'Back to library' if session.get('user_id') else 'Open login' }}</a><a class="button button-quiet" href="{{ url_for('auth.register') }}">Open registration</a></div>
+</section>
+{% endblock %}

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Library{% endblock %} · Library</title>
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block scripts %}{% endblock %}
+</head>
+<body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+        <nav class="header-inner" aria-label="Main navigation">
+            <a class="brand" href="{{ url_for('home') if session.get('user_id') else url_for('auth.login') }}">
+                <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v16M12 5C9 3 5 3 2 4v15c3-1 7-1 10 2 3-3 7-3 10-2V4c-3-1-7-1-10 1Z" stroke-linejoin="round"/></svg>
+                <span>Library</span>
+            </a>
+            <div class="header-actions">
+                {% if session.get('user_id') %}
+                    <div class="account-nav">
+                        <span class="account-name">Hi, {{ session.get('name') }}</span>
+                        <form method="post" action="{{ url_for('auth.logout') }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <button class="button button-quiet" type="submit">Log out</button>
+                        </form>
+                    </div>
+                {% else %}
+                    <div class="guest-nav">
+                        <a href="{{ url_for('auth.login') }}"{% if request.endpoint == 'auth.login' %} aria-current="page"{% endif %}>Log in</a>
+                        <a class="button button-outline" href="{{ url_for('auth.register') }}"{% if request.endpoint == 'auth.register' %} aria-current="page"{% endif %}>Create account</a>
+                    </div>
+                {% endif %}
+                <button id="theme-toggle" class="button button-outline theme-toggle" type="button" aria-label="Switch to dark mode" title="Switch to dark mode" hidden>
+                    <svg class="theme-moon" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 13.2A8.7 8.7 0 0 1 10.8 3.5a8.7 8.7 0 1 0 9.7 9.7Z"/></svg>
+                    <svg class="theme-sun" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+                </button>
+            </div>
+        </nav>
+    </header>
+    <main id="main" class="page {% block page_class %}{% endblock %}">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <ul class="messages" aria-live="polite" aria-atomic="true">
+                    {% for category, message in messages %}
+                        <li class="flash {{ category }}">{{ message }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </main>
+    <footer class="site-footer">Books and authors, in one place.</footer>
+</body>
+</html>
