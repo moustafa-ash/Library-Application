@@ -6,8 +6,6 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 import pymysql
-from flask import send_from_directory
-
 from app import create_app
 from tests import TEST_CONFIG
 from tests.test_images import upload
@@ -171,19 +169,13 @@ class BookTests(unittest.TestCase):
                 self.assertEqual(response.status_code, 503)
                 self.assertNotIn(b"private missing table", response.data)
 
-    def test_preview_endpoint_is_optional(self):
+    def test_cover_preview_uses_protected_media_endpoint(self):
         self.post(cover=(upload().stream, "test.png"))
         name = self.files()[0].name
         self.cursor.fetchone.return_value = {**self.book, "cover_filename": name}
-        self.assertIn(b"Cover preview awaiting media integration", self.client.get("/books/1/edit").data)
-        # Test-only endpoint; production media remains Ibrahim's responsibility.
-        app = create_app({**TEST_CONFIG, "SESSION_FILE_DIR": str(self.root / "sessions2")})
-        app.add_url_rule("/media/<kind>/<filename>", "media.image",
-            lambda kind, filename: send_from_directory(self.root / "uploads" / kind, filename))
-        client = app.test_client()
-        with client.session_transaction() as session:
-            session["user_id"] = 1
-        response = client.get("/books/1/edit")
+        response = self.client.get("/books/1/edit")
         self.assertIn(f'/media/books/{name}'.encode(), response.data)
-        with client.get(f"/media/books/{name}") as image_response:
+        with self.client.get(f"/media/books/{name}") as image_response:
+            self.assertEqual(image_response.status_code, 200)
             self.assertEqual(image_response.mimetype, "image/jpeg")
+            self.assertEqual(image_response.headers["X-Content-Type-Options"], "nosniff")

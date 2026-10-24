@@ -1,6 +1,10 @@
--- Moustafa's six books. Run once after AUTHOR seeds with IDs 1, 2, and 3.
--- Coordinate these IDs with Ibrahim; no AUTHOR records are supplied here.
+-- Run once on a new library database. Check for existing rows first.
 USE library;
+
+INSERT INTO AUTHOR (author_id, name, photo_filename) VALUES
+    (1, 'Naguib Mahfouz', NULL),
+    (2, 'Taha Hussein', NULL),
+    (3, 'Ahdaf Soueif', NULL);
 
 INSERT INTO BOOK (title, price, author_id, cover_filename) VALUES
     ('Library sample 1', 120.00, 1, NULL),

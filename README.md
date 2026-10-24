@@ -5,16 +5,16 @@ Flask/Jinja, MySQL, PyMySQL, plain CSS, and minimal JavaScript.
 ## Current status
 
 Shared setup includes the app factory, configuration, database helper,
-registration/login/logout, CSRF protection, server-side sessions, and the
-Lab 2 light/dark design. Moustafa's authenticated books CRUD, cover lifecycle,
-shared image helper, BOOK SQL/seeds, and tests are implemented. Home links to books.
-Ibrahim's author feature, AUTHOR SQL/seeds, production media route, global upload
-configuration/413 recovery, and shared image styles remain pending.
+registration/login/logout, CSRF protection, server-side sessions, and the Lab 2
+light/dark design. Authenticated books and authors CRUD, cover/photo lifecycles,
+AUTHOR/BOOK SQL and sample seeds, protected media serving, and upload recovery
+are implemented. Check `docs/checklist.md` for verification still requiring a
+disposable MySQL/browser demonstration.
 
-On 2026-10-23, the local `library` database was created without resetting data;
-both configured connections passed `check-db`. It has no tables yet: live book
-pages return a recovery page until AUTHOR and BOOK setup is complete. Real book
-SQL, CRUD, and browser checks passed using disposable databases and AUTHOR fixtures.
+On 2026-10-24, `problem2_DDL.sql` and `problem2_DML.sql` were run in MySQL
+Workbench. The output showed three authors and six books in `library`; the app
+was started locally. Real disposable-MySQL author-cascade cleanup and browser
+checks for the new author/media pages still need to be run.
 
 ## Implementation documents
 
@@ -22,7 +22,7 @@ Read [the library and image-bonus plan](docs/plan.md),
 [team ownership](docs/work_split.md), and
 [the implementation checklist](docs/checklist.md). Pillow 13.0.0 is pinned and
 the shared image helper is implemented. The plan describes joint behavior;
-the checklist distinguishes this completed work from pending integration.
+the checklist records completed implementation and remaining verification.
 
 ## Run locally
 
@@ -42,11 +42,10 @@ the checklist distinguishes this completed work from pending integration.
 3. Start MySQL. Existing Lab 2 users work without migration. On a new instance,
    execute `website/database/auth.sql` in DBeaver to create `registration.users`.
    This optional script does not drop databases or create to-do tables.
-   For the catalog, create `library` without dropping existing data. Coordinate
-   `problem2_DDL.sql` with Ibrahim: his InnoDB AUTHOR definition (signed INT
-   `author_id` primary key) must run before the supplied BOOK definition.
-   His author seeds with IDs **1, 2, 3** must run before the six illustrative
-   book seeds in `problem2_DML.sql`. These are run-once seeds, not a reset or
+   For the catalog, create `library` without dropping existing data.
+   `problem2_DDL.sql` creates the InnoDB AUTHOR table before BOOK and includes
+   the cascade foreign key. `problem2_DML.sql` inserts authors with IDs **1, 2, 3**
+   before six illustrative books. These are run-once seeds, not a reset or
    migration script; check existing tables/rows before execution. If the tables
    already exist, review additive changes instead of recreating them.
 
@@ -77,14 +76,13 @@ the checklist distinguishes this completed work from pending integration.
 | Area | Moustafa | Ibrahim |
 | --- | --- | --- |
 | Feature | Books routes, queries, templates, tests | Authors routes, queries, templates, tests |
-| Shared work | Flask setup, config, connection | Authentication, shared layout, theme |
+| Shared work | Flask setup, config, connection | Authentication, shared layout, theme, media, upload handling |
 | Library SQL | BOOK and at least six book seeds | AUTHOR and at least three author seeds |
 
 The shared `get_connection()` helper selects `DB_NAME` by default; pass
 `current_app.config["AUTH_DB_NAME"]` for authentication. Always use context
-managers, parameterized SQL, and explicit commits for writes. Future feature
-Blueprints should export `books` / `authors`, with `index` endpoints, and use
-`login_required` on every route. Register them in `create_app` when implemented.
+managers, parameterized SQL, and explicit commits for writes. Feature Blueprints
+export `books` / `authors` and protect every route with `login_required`.
 The catalog is shared; it has no per-user ownership column.
 
 ## Automatic tests and audit
@@ -132,11 +130,10 @@ Read [the setup and plan audit](docs/audit.md) for findings, evidence, and limit
    create. Its login/media endpoints exist only in the fixture server.
    Screenshots are saved under ignored `website/instance/book-checks/`.
 
-3. After Ibrahim's database prerequisites are ready, log in, choose **Browse
-   books**, add a book, edit without selecting a cover, replace its cover, and
-   delete it through the confirmation form. Before `media.image` is registered,
-   stored covers show **Cover preview awaiting media integration**. The seeded
-   book titles are illustrative fixtures; coordinate final catalog content.
+3. After database setup, log in and use **Browse books** and **Browse authors**.
+   Exercise create/edit/delete for both, retain images on edits without uploads,
+   replace images, and confirm author deletion removes its books and their covers.
+   The seeded book titles are illustrative fixtures; coordinate final catalog content.
 
 ### Image helper handoff
 
@@ -153,13 +150,11 @@ and decompression-bomb warnings/errors. It applies EXIF orientation, fits within
 1600 x 1600 without upscaling, composites transparency onto white, and atomically
 stores a fresh RGB JPEG at quality 85 without copied metadata.
 
-Ibrahim must register authenticated `media.image` at
-`/media/<kind>/<filename>` with strict kind/basename validation, JPEG/nosniff
-headers, and safe serving. He also supplies `MAX_CONTENT_LENGTH=6 * 1024 * 1024`,
-413 recovery, author-photo/cascaded-cover cleanup, and shared image/table styles.
-The helper's file limit is enforced, but the production whole-request limit
-and media access checks remain pending. Book-specific markup currently reuses
-the existing theme and contains its table scrolling and image sizing.
+The protected `media.image` endpoint serves generated JPEG basenames at
+`/media/<kind>/<filename>` with strict validation and nosniff headers.
+`MAX_CONTENT_LENGTH=6 * 1024 * 1024` and a 413 recovery page complement the
+5 MiB per-file helper limit. Author deletion removes affected covers after the
+database cascade commits. Shared table and author-photo styles use both themes.
 
 Book routes lock current records on writes, commit SQL before deleting old
 covers, and remove new files on rollback. Post-commit cleanup is best effort

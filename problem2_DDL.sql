@@ -1,8 +1,13 @@
--- Moustafa's BOOK definition. Ibrahim supplies AUTHOR before this statement.
--- Prerequisite: AUTHOR.author_id is a signed INT primary key, using InnoDB.
--- No database/table reset: coordinate edits before executing this shared file.
+-- Shared catalog schema. Run once on a new library database; no reset/drop.
 CREATE DATABASE IF NOT EXISTS library CHARACTER SET utf8mb4;
 USE library;
+
+CREATE TABLE AUTHOR (
+    author_id INT NOT NULL AUTO_INCREMENT,
+    name VARCHAR(100) NOT NULL,
+    photo_filename VARCHAR(36) NULL,
+    PRIMARY KEY (author_id)
+) ENGINE=InnoDB;
 
 CREATE TABLE BOOK (
     book_id INT NOT NULL AUTO_INCREMENT,

@@ -1,4 +1,4 @@
-"""Opt-in real BOOK checks; AUTHOR exists only as a disposable test fixture."""
+"""Opt-in real BOOK/AUTHOR checks using disposable catalog databases."""
 
 from decimal import Decimal
 import os
@@ -37,11 +37,6 @@ class BookMySQLTests(unittest.TestCase):
         with self.admin.cursor() as cursor:
             cursor.execute(f"CREATE DATABASE `{self.database}` CHARACTER SET utf8mb4")
             cursor.execute(f"USE `{self.database}`")
-            # Fixture only: does not implement Ibrahim's production schema or seed work.
-            cursor.execute("CREATE TABLE AUTHOR (author_id INT PRIMARY KEY AUTO_INCREMENT, "
-                           "name VARCHAR(100) NOT NULL, country VARCHAR(100)) ENGINE=InnoDB")
-            cursor.execute("INSERT INTO AUTHOR VALUES (1, 'Test author A', 'Test'), "
-                           "(2, 'Test author B', 'Test'), (3, 'Test author C', 'Test')")
             for name in ("problem2_DDL.sql", "problem2_DML.sql"):
                 script = (Path(__file__).resolve().parents[2] / name).read_text(encoding="utf-8")
                 script = re.sub(r"--[^\n]*", "", script)
