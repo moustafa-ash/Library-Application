@@ -6,12 +6,11 @@ import subprocess
 import sys
 import threading
 
-from flask import redirect, send_from_directory, session
+from flask import redirect, session
 from werkzeug.serving import make_server
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app.auth import login_required
 from tests.test_books_mysql import BookMySQLTests
 
 
@@ -26,12 +25,6 @@ if __name__ == "__main__":
         def test_login():
             session.update(user_id=1, name="Book browser test")
             return redirect("/books/")
-
-        @fixture.app.get("/media/<kind>/<filename>", endpoint="media.image")
-        @login_required
-        def test_media(kind, filename):
-            # Fixture only: production safe serving and media validation belong to Ibrahim.
-            return send_from_directory(fixture.root / "uploads" / kind, filename)
 
         server = make_server("127.0.0.1", 0, fixture.app)
         threading.Thread(target=server.serve_forever, daemon=True).start()
