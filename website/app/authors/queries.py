@@ -3,26 +3,27 @@
 
 def list_authors(connection):
     with connection.cursor() as cursor:
-        cursor.execute("SELECT author_id, name, photo_filename FROM AUTHOR ORDER BY name, author_id")
+        cursor.execute("SELECT author_id, name, country, photo_filename FROM AUTHOR ORDER BY name, author_id")
         return cursor.fetchall()
 
 
 def get_author(connection, author_id, *, lock=False):
     with connection.cursor() as cursor:
-        cursor.execute("SELECT author_id, name, photo_filename FROM AUTHOR WHERE author_id = %s"
+        cursor.execute("SELECT author_id, name, country, photo_filename FROM AUTHOR WHERE author_id = %s"
                        + (" FOR UPDATE" if lock else ""), (author_id,))
         return cursor.fetchone()
 
 
-def insert_author(connection, name, photo_filename):
+def insert_author(connection, name, country, photo_filename):
     with connection.cursor() as cursor:
-        cursor.execute("INSERT INTO AUTHOR (name, photo_filename) VALUES (%s, %s)", (name, photo_filename))
+        cursor.execute("INSERT INTO AUTHOR (name, country, photo_filename) VALUES (%s, %s, %s)",
+                       (name, country, photo_filename))
 
 
-def update_author(connection, author_id, name, photo_filename):
+def update_author(connection, author_id, name, country, photo_filename):
     with connection.cursor() as cursor:
-        cursor.execute("UPDATE AUTHOR SET name = %s, photo_filename = %s WHERE author_id = %s",
-                       (name, photo_filename, author_id))
+        cursor.execute("UPDATE AUTHOR SET name = %s, country = %s, photo_filename = %s WHERE author_id = %s",
+                       (name, country, photo_filename, author_id))
 
 
 def list_author_books(connection, author_id, *, lock=False):
