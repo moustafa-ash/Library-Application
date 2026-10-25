@@ -69,6 +69,7 @@ class BookMySQLTests(unittest.TestCase):
             "price": "10.50", "author_id": "1", **values})
 
     def test_sql_seeds_foreign_key_and_cascade(self):
+        self.assertGreaterEqual(len(self.rows("SELECT * FROM AUTHOR")), 3)
         self.assertEqual(len(self.rows("SELECT * FROM BOOK")), 6)
         self.assertTrue(all(row["cover_filename"] is None for row in self.rows("SELECT * FROM BOOK")))
         with self.app.app_context(), get_connection() as connection:
@@ -81,6 +82,72 @@ class BookMySQLTests(unittest.TestCase):
             connection.commit()
         self.assertFalse(self.rows("SELECT * FROM BOOK WHERE author_id = %s", (1,)))
         self.assertEqual(len(self.rows("SELECT * FROM BOOK")), 4)
+
+    def test_library_schema_types_keys_and_required_country(self):
+        columns = self.rows("SELECT TABLE_NAME, COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE FROM information_schema.COLUMNS "
+                            "WHERE TABLE_SCHEMA = %s", (self.database,))
+        actual = {(row["TABLE_NAME"].upper(), row["COLUMN_NAME"]): (row["COLUMN_TYPE"], row["IS_NULLABLE"])
+                  for row in columns}
+        self.assertEqual(actual, {
+            ("AUTHOR", "author_id"): ("int", "NO"), ("AUTHOR", "name"): ("varchar(100)", "NO"),
+            ("AUTHOR", "country"): ("varchar(100)", "NO"), ("AUTHOR", "photo_filename"): ("varchar(36)", "YES"),
+            ("BOOK", "book_id"): ("int", "NO"), ("BOOK", "title"): ("varchar(255)", "NO"),
+            ("BOOK", "price"): ("decimal(10,2)", "NO"), ("BOOK", "author_id"): ("int", "NO"),
+            ("BOOK", "cover_filename"): ("varchar(36)", "YES"),
+        })
+        keys = self.rows("SELECT TABLE_NAME, COLUMN_NAME FROM information_schema.KEY_COLUMN_USAGE "
+                         "WHERE TABLE_SCHEMA = %s AND CONSTRAINT_NAME = 'PRIMARY'", (self.database,))
+        self.assertEqual({(row["TABLE_NAME"].upper(), row["COLUMN_NAME"]) for row in keys},
+                         {("AUTHOR", "author_id"), ("BOOK", "book_id")})
+        rules = self.rows("SELECT DELETE_RULE FROM information_schema.REFERENTIAL_CONSTRAINTS "
+                          "WHERE CONSTRAINT_SCHEMA = %s AND CONSTRAINT_NAME = 'fk_book_author'", (self.database,))
+        self.assertEqual(rules[0]["DELETE_RULE"], "CASCADE")
+
+    def test_real_author_crud_country_and_photo_lifecycle(self):
+        values = {"csrf_token": "token", "name": "Audit author", "country": "Egypt"}
+        self.assertEqual(self.client.post("/authors/add", data=values).status_code, 302)
+        row = self.rows("SELECT * FROM AUTHOR ORDER BY author_id DESC LIMIT 1")[0]
+        author_id = row["author_id"]
+        self.assertIsNone(row["photo_filename"])
+        path = f"/authors/{author_id}/edit"
+        self.assertEqual(self.client.post(path, data=values).status_code, 302)
+        self.assertEqual(self.client.post(path, data={**values, "photo": (upload().stream, "one.png")}).status_code, 302)
+        row = self.rows("SELECT * FROM AUTHOR WHERE author_id = %s", (author_id,))[0]
+        old = self.root / "uploads/authors" / row["photo_filename"]
+        self.assertTrue(old.is_file())
+        self.assertEqual(self.client.post(path, data=values).status_code, 302)
+        self.assertTrue(old.is_file())
+        updated = {**values, "name": "Edited audit author", "country": "Morocco"}
+        self.assertEqual(self.client.post(path, data={**updated, "photo": (upload().stream, "two.png")}).status_code, 302)
+        self.assertFalse(old.exists())
+        row = self.rows("SELECT * FROM AUTHOR WHERE author_id = %s", (author_id,))[0]
+        self.assertEqual((row["name"], row["country"]), ("Edited audit author", "Morocco"))
+        page = self.client.get("/authors/")
+        self.assertIn(b"Edited audit author", page.data)
+        self.assertIn(b"Morocco", page.data)
+        self.assertEqual(self.client.post(f"/authors/{author_id}/delete", data={"csrf_token": "token"}).status_code, 302)
+        self.assertFalse(self.rows("SELECT * FROM AUTHOR WHERE author_id = %s", (author_id,)))
+        self.assertFalse((self.root / "uploads/authors" / row["photo_filename"]).exists())
+        self.assertEqual(self.client.get(path).status_code, 404)
+
+    def test_country_migration_preserves_existing_catalog(self):
+        before_authors = self.rows("SELECT author_id, name, photo_filename FROM AUTHOR ORDER BY author_id")
+        before_books = self.rows("SELECT * FROM BOOK ORDER BY book_id")
+        with self.app.app_context(), get_connection() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute("ALTER TABLE AUTHOR DROP COLUMN country")
+                script = (Path(__file__).resolve().parents[1] / "database/add_author_country.sql").read_text(encoding="utf-8")
+                script = re.sub(r"--[^\n]*", "", script)
+                script = re.sub(r"\blibrary\b", self.database, script)
+                for statement in script.split(";"):
+                    if statement.strip():
+                        cursor.execute(statement)
+                with self.assertRaises(pymysql.OperationalError) as rejected:
+                    cursor.execute("INSERT INTO AUTHOR(name) VALUES ('Country required')")
+                self.assertEqual(rejected.exception.args[0], 1364)
+        self.assertEqual(self.rows("SELECT author_id, name, photo_filename FROM AUTHOR ORDER BY author_id"), before_authors)
+        self.assertEqual(self.rows("SELECT * FROM BOOK ORDER BY book_id"), before_books)
+        self.assertTrue(all(row["country"] == "Unknown" for row in self.rows("SELECT country FROM AUTHOR")))
 
     def test_real_crud_and_cover_lifecycle(self):
         self.assertEqual(self.client.get("/books/").status_code, 200)

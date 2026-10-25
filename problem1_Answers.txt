@@ -9,6 +9,11 @@ The department is added. MySQL rejects the deletion because the employee
 is a department manager. ON DELETE RESTRICT protects the reference.
 Expected result: INSERT succeeds; DELETE gives error 1451.
 
+Observed on MySQL 8.4.11 in a disposable database, 2026-10-25:
+INSERT: Query OK, 1 row affected.
+DELETE: ERROR 1451 (23000): Cannot delete or update a parent row:
+a foreign key constraint fails. Employee 100000001 remains in EMPLOYEE.
+
 Q1.2
 INSERT INTO PROJECT (Pnumber, Pname, Plocation, Dno)
 VALUES (104, 'New Project', 'Alexandria', 999);
@@ -16,6 +21,10 @@ VALUES (104, 'New Project', 'Alexandria', 999);
 MySQL rejects the insert because department 999 does not exist.
 The foreign key requires an existing department, so no project is added.
 Expected result: error 1452.
+
+Observed on MySQL 8.4.11 in a disposable database, 2026-10-25:
+ERROR 1452 (23000): Cannot add or update a child row:
+a foreign key constraint fails. Project 104 is not inserted.
 
 Q1.3
 We cannot insert the first row while both foreign keys are active and
@@ -33,3 +42,18 @@ FOREIGN KEY (mgr_ssn) REFERENCES EMPLOYEE (ssn);
 
 Both rows now exist, so adding the missing foreign key succeeds.
 This example needs the initial setup described above, not the seeded tables.
+
+Observed on MySQL 8.4.11 in a disposable database, 2026-10-25:
+With both circular fields NOT NULL and both foreign keys active, either
+first INSERT fails with ERROR 1452 (23000).
+With only the manager foreign key delayed, each INSERT affects 1 row and
+the ALTER TABLE statement succeeds. Resulting rows:
+DEPARTMENT: Dnumber=1, mgr_ssn=100000001
+EMPLOYEE: ssn=100000001, Dno=1
+The manager foreign key is present after ALTER TABLE.
+
+The supplied seed script uses a different valid bootstrap: EMPLOYEE.Dno
+allows temporary NULLs, then its three values are updated after departments
+exist. No seeded employee retains a NULL department. The Q1.3 demonstration
+above tests the stricter NOT NULL scenario separately; foreign-key checks
+are never disabled. Tests execute this file's SQL and assert the outcomes.

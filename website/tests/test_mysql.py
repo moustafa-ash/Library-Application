@@ -56,11 +56,73 @@ class MySQLTests(unittest.TestCase):
                 self.assertGreaterEqual(cursor.fetchone()[0], 3)
             cursor.execute("SELECT COUNT(*) FROM EMPLOYEE WHERE Dno IS NULL")
             self.assertEqual(cursor.fetchone()[0], 0)
-            cursor.execute("INSERT INTO DEPARTMENT VALUES (4, 'Audit test', '100000001', '2026-01-01')")
-            with self.assertRaises(pymysql.IntegrityError):
-                cursor.execute("DELETE FROM EMPLOYEE WHERE ssn = '100000001'")
-            with self.assertRaises(pymysql.IntegrityError):
-                cursor.execute("INSERT INTO PROJECT VALUES (104, 'Invalid', 'Test', 999)")
+            statements = self.answer_statements("Q1.1")
+            cursor.execute(statements[0])
+            self.assertEqual(cursor.rowcount, 1)
+            with self.assertRaises(pymysql.IntegrityError) as rejected:
+                cursor.execute(statements[1])
+            self.assertEqual(rejected.exception.args[0], 1451)
+            with self.assertRaises(pymysql.IntegrityError) as rejected:
+                cursor.execute(self.answer_statements("Q1.2")[0])
+            self.assertEqual(rejected.exception.args[0], 1452)
+            cursor.execute("SELECT COUNT(*) FROM EMPLOYEE WHERE ssn = '100000001'")
+            self.assertEqual(cursor.fetchone()[0], 1)
+            cursor.execute("SELECT COUNT(*) FROM PROJECT WHERE Pnumber = 104")
+            self.assertEqual(cursor.fetchone()[0], 0)
+
+    def answer_statements(self, question):
+        answers = (self.root / "problem1_Answers.txt").read_text(encoding="utf-8")
+        section = re.split(rf"(?m)^{re.escape(question)}\s*$", answers)[1]
+        section = re.split(r"(?m)^Q1\.[123]\s*$", section)[0]
+        return re.findall(r"(?ms)^(?:INSERT INTO|DELETE FROM|ALTER TABLE).*?;", section)
+
+    def test_company_schema_types_primary_and_foreign_keys(self):
+        self.execute_script(self.root / "problem1_DDL.sql", "company")
+        expected = {
+            "DEPARTMENT": {"Dnumber": "int", "Dname": "varchar(50)", "mgr_ssn": "char(9)", "mgr_start_date": "date"},
+            "EMPLOYEE": {"ssn": "char(9)", "fname": "varchar(50)", "lname": "varchar(50)", "bdate": "date",
+                         "address": "varchar(100)", "gender": "char(1)", "salary": "decimal(10,2)", "Dno": "int"},
+            "PROJECT": {"Pnumber": "int", "Pname": "varchar(50)", "Plocation": "varchar(50)", "Dno": "int"},
+        }
+        with self.connection.cursor() as cursor:
+            cursor.execute("SELECT TABLE_NAME, COLUMN_NAME, COLUMN_TYPE FROM information_schema.COLUMNS "
+                           "WHERE TABLE_SCHEMA = %s", (self.database,))
+            actual = {}
+            for table, column, datatype in cursor.fetchall():
+                actual.setdefault(table.upper(), {})[column] = datatype
+            self.assertEqual(actual, expected)
+            cursor.execute("SELECT TABLE_NAME, COLUMN_NAME FROM information_schema.KEY_COLUMN_USAGE "
+                           "WHERE TABLE_SCHEMA = %s AND CONSTRAINT_NAME = 'PRIMARY'", (self.database,))
+            self.assertEqual({(table.upper(), column) for table, column in cursor.fetchall()},
+                             {("DEPARTMENT", "Dnumber"), ("EMPLOYEE", "ssn"), ("PROJECT", "Pnumber")})
+            cursor.execute("SELECT TABLE_NAME, COLUMN_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME "
+                           "FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA = %s "
+                           "AND REFERENCED_TABLE_NAME IS NOT NULL", (self.database,))
+            self.assertEqual({(table.upper(), column, target.upper(), key) for table, column, target, key in cursor.fetchall()},
+                {("DEPARTMENT", "mgr_ssn", "EMPLOYEE", "ssn"), ("EMPLOYEE", "Dno", "DEPARTMENT", "Dnumber"),
+                 ("PROJECT", "Dno", "DEPARTMENT", "Dnumber")})
+
+    def test_company_q13_circular_reference_and_delayed_constraint(self):
+        self.execute_script(self.root / "problem1_DDL.sql", "company")
+        statements = self.answer_statements("Q1.3")
+        self.assertEqual(len(statements), 3)
+        with self.connection.cursor() as cursor:
+            # Q1.3 deliberately tests both circular fields as NOT NULL on empty tables.
+            cursor.execute("ALTER TABLE EMPLOYEE MODIFY Dno INT NOT NULL")
+            for statement in statements[:2]:
+                with self.assertRaises(pymysql.IntegrityError) as rejected:
+                    cursor.execute(statement)
+                self.assertEqual(rejected.exception.args[0], 1452)
+            cursor.execute("ALTER TABLE DEPARTMENT DROP FOREIGN KEY fk_department_manager")
+            for statement in statements:
+                cursor.execute(statement)
+            cursor.execute("SELECT Dnumber, mgr_ssn FROM DEPARTMENT")
+            self.assertEqual(cursor.fetchall(), ((1, "100000001"),))
+            cursor.execute("SELECT ssn, Dno FROM EMPLOYEE")
+            self.assertEqual(cursor.fetchall(), (("100000001", 1),))
+            cursor.execute("SELECT COUNT(*) FROM information_schema.REFERENTIAL_CONSTRAINTS "
+                           "WHERE CONSTRAINT_SCHEMA = %s AND CONSTRAINT_NAME = 'fk_department_manager'", (self.database,))
+            self.assertEqual(cursor.fetchone()[0], 1)
 
     def test_real_registration_login_and_logout(self):
         self.execute_script(self.root / "website/database/auth.sql", "registration")

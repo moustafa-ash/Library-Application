@@ -1,5 +1,6 @@
 /AGENTS.md
 /design.md
+/docs/
 .env
 .env.*
 !.env.example

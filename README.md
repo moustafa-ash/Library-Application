@@ -1,185 +1,186 @@
-# Library application — Lab 3
+# Library Application — Database Lab 3
 
-Flask/Jinja, MySQL, PyMySQL, plain CSS, and minimal JavaScript.
+## 1. Project description
 
-## Current status
+A shared library application built with **Flask, Jinja, plain CSS, minimal JavaScript, PyMySQL, and MySQL**. Users can register, log in, and manage books and authors, including optional book covers and author photos.
 
-Shared setup includes the app factory, configuration, database helper,
-registration/login/logout, CSRF protection, server-side sessions, and the Lab 2
-light/dark design. Authenticated books and authors CRUD, cover/photo lifecycles,
-AUTHOR/BOOK SQL and sample seeds, protected media serving, and upload recovery
-are implemented. Check `docs/checklist.md` for verification still requiring a
-disposable MySQL/browser demonstration.
+Each book belongs to an author. Deleting an author also deletes their books and removes the related image files. Library records are shared between authenticated users.
 
-On 2026-10-24, `problem2_DDL.sql` and `problem2_DML.sql` were run in MySQL
-Workbench. The output showed three authors and six books in `library`; the app
-was started locally. Real disposable-MySQL author-cascade cleanup and browser
-checks for the new author/media pages still need to be run.
+The project contains two separate database exercises:
 
-## Implementation documents
+- **Problem 1:** a company database with employee, department, and project tables, seed data, and answers to Q1.1–Q1.3.
+- **Problem 2:** the library database and website. The catalog uses `AUTHOR(author_id, name, country, photo_filename)` and `BOOK(book_id, title, price, author_id, cover_filename)`.
+- **Authentication:** accounts are stored separately in `registration.users`. Existing Lab 2 accounts can be reused.
 
-Read [the library and image-bonus plan](docs/plan.md),
-[team ownership](docs/work_split.md), and
-[the implementation checklist](docs/checklist.md). Pillow 13.0.0 is pinned and
-the shared image helper is implemented. The plan describes joint behavior;
-the checklist records completed implementation and remaining verification.
+## 2. Contributors
 
-## Run locally
-
-1. Create a virtual environment from the repository root (Python 3.12 or newer):
-
-   ```powershell
-   py -m venv .venv
-   .\.venv\Scripts\python.exe -m pip install -r website/requirements.txt
-   ```
-
-2. Prepare `website/.env`. If it does not exist, copy `website/.env.example`.
-   Set your MySQL credentials and a random `SECRET_KEY`. Existing local values
-   must be kept private. `DB_NAME=library` is the catalog database;
-   `AUTH_DB_NAME=registration` reuses Lab 2 accounts on the same MySQL server.
-   Environment variables override `.env`. No file depends on the launch folder.
-
-3. Start MySQL. Existing Lab 2 users work without migration. On a new instance,
-   execute `website/database/auth.sql` in DBeaver to create `registration.users`.
-   This optional script does not drop databases or create to-do tables.
-   For a new catalog, create `library`, then run `problem2_DDL.sql` and
-   `problem2_DML.sql` once. The schema includes required author name/country
-   fields and the BOOK cascade foreign key; the seed script inserts three authors
-   before six illustrative books. These scripts are not resets or migrations.
-   For an existing catalog made before AUTHOR.country was added, run
-   `website/database/add_author_country.sql` once. It preserves rows and fills
-   the new required field with `Unknown`; update those countries in **Browse
-   authors**. Do not rerun the migration.
-
-4. Start the local application from the repository root:
-
-   ```powershell
-   .\.venv\Scripts\python.exe -m flask --app website/run.py run
-   ```
-
-   Open <http://127.0.0.1:5000>. Register or log in with an existing Lab 2
-   account. Debug mode is off by default. For HTTPS deployment, set
-   `SESSION_COOKIE_SECURE=true`; leave it false for local HTTP development.
-
-5. Run tests and check database connections:
-
-   ```powershell
-   .\.venv\Scripts\python.exe -m unittest discover -s website/tests -t website
-   .\.venv\Scripts\python.exe -m flask --app website/run.py check-db
-   ```
-
-   Unit tests mock MySQL and use temporary session storage. `check-db` only
-   runs `SELECT 1`, checking authentication first and then the library. It does
-   not verify that AUTHOR or BOOK exists. Book integration tests below use
-   real MySQL and disposable fixtures instead of mocking the database.
-
-## Team ownership
-
-| Area | Moustafa | Ibrahim |
+| Name | ID | Contributions |
 | --- | --- | --- |
-| Feature | Books routes, queries, templates, tests | Authors routes, queries, templates, tests |
-| Shared work | Flask setup, config, connection | Authentication, shared layout, theme, media, upload handling |
-| Library SQL | BOOK and at least six book seeds | AUTHOR and at least three author seeds |
+| Moustafa Mohamed | 2304252 | Books CRUD and covers, BOOK schema/seeds, app configuration/database setup, shared image helper, book/helper tests, backend documentation |
+| Ibrahim Hossam | 2304248 | Authors CRUD and photos, AUTHOR schema/seeds, authentication, shared layout/themes, protected media, upload handling, author/cascade tests |
 
-The shared `get_connection()` helper selects `DB_NAME` by default; pass
-`current_app.config["AUTH_DB_NAME"]` for authentication. Always use context
-managers, parameterized SQL, and explicit commits for writes. Feature Blueprints
-export `books` / `authors` and protect every route with `login_required`.
-The catalog is shared; it has no per-user ownership column.
+## 3. Run the project
 
-## Automatic tests and audit
+**Required:** Windows PowerShell, Git, Python 3.14, and MySQL 8.4 with `mysql` on PATH.
 
-[Setup tests](.github/workflows/tests.yml) runs on pull requests to `main` and
-pushes to `init-setup`/`main`. It installs the pinned Python requirements, checks
-dependencies, runs the unit and real MySQL tests in an isolated MySQL 8.4
-service, and checks the shared pages with Chrome at desktop/mobile sizes.
-It needs no private `.env` or repository secrets. The browser test tool is
-installed only on the CI runner; it is not a Python application dependency.
+### Step 1 — Clone
 
-The normal local unittest command skips six opt-in MySQL tests (two setup,
-three book checks and one author-delete integration check). To include the original setup tests, set `RUN_MYSQL_TESTS=1`,
-`MYSQL_TEST_USER`, and `MYSQL_TEST_PASSWORD`;
-optionally set `MYSQL_TEST_HOST` and `MYSQL_TEST_PORT`. The account must be able
-to create/drop uniquely generated `library_setup_test_*` databases. Scripts are
-rewritten to those database names; existing application databases are preserved.
-The tests create their own users and never use real account passwords.
+```powershell
+git clone https://github.com/moustafa-ash/Library-Application.git
+Set-Location Library-Application
+```
 
-To run `python website/tests/browser.py` locally, provide Node.js, Chrome, and
-an existing Playwright installation through `NODE_PATH`. It starts and stops a
-temporary server and uses temporary session files without connecting to MySQL.
-Read [the setup and plan audit](docs/audit.md) for findings, evidence, and limits.
+### Step 2 — Install dependencies
 
-### Book verification and demonstration
+```powershell
+py -3.14 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r website/requirements.txt
+```
 
-1. Run book MySQL checks using the existing private connection settings:
+### Step 3 — Configure
 
-   ```powershell
-   $env:RUN_BOOK_MYSQL_TESTS='1'
-   .\.venv\Scripts\python.exe -m unittest discover -s website/tests -t website
-   .\.venv\Scripts\python.exe -m pip check
-   ```
+```powershell
+if (-not (Test-Path website/.env)) {
+    Copy-Item website/.env.example website/.env
+}
 
-   Only generated `library_books_test_<uuid>` databases are created/dropped.
-   The account needs CREATE/DROP DATABASE privileges. Optional `MYSQL_TEST_HOST`,
-   `MYSQL_TEST_PORT`, `MYSQL_TEST_USER`, and `MYSQL_TEST_PASSWORD` override the
-   connection for tests. Never put private settings in a committed command/file.
-   This command does not enable the separate company tests.
+.\.venv\Scripts\python.exe -c "import secrets; print(secrets.token_hex(32))"
+notepad website/.env
+```
 
-2. With Chrome and an existing Playwright installation available via `NODE_PATH`,
-   run `.\.venv\Scripts\python.exe website/tests/browser_books.py` with the
-   same opt-in flag. This starts/stops a local fixture server and verifies book
-   pages in both themes at 1366px/360px, upload/retention/delete, and a no-JavaScript
-   create. Its login/media endpoints exist only in the fixture server.
-   Screenshots are saved under ignored `website/instance/book-checks/`.
+Enter your MySQL credentials and the generated secret. Keep `.env` private.
 
-3. After database setup, log in and use **Browse books** and **Browse authors**.
-   Exercise create/edit/delete for both, retain images on edits without uploads,
-   replace images, and confirm author deletion removes its books and their covers.
-   The seeded book titles are illustrative fixtures; coordinate final catalog content.
+```dotenv
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=your_mysql_username
+DB_PASSWORD=your_mysql_password
+DB_NAME=library
+AUTH_DB_NAME=registration
+SECRET_KEY=paste_your_generated_secret_here
+```
 
-### Image helper handoff
+### Step 4 — Set up MySQL
 
-`app.images.save_image(upload, kind)` returns a generated 36-character JPEG
-basename; `delete_image(filename, kind)` removes it and tolerates missing files.
-Kinds are exactly `books` and `authors`. Invalid content/kinds/names raise
-`ValueError`; disk failures raise `OSError`. The default root is
-`website/instance/uploads/`; tests can set `UPLOAD_ROOT` to a temporary directory.
-Never pass a browser-supplied path into storage or serving.
+If stopped, start the service in **administrator PowerShell**. Use your service name if different:
 
-JPG/JPEG, PNG, and WebP must match their decoded format. The helper rejects
-empty/corrupt/animated images, files over 5 MiB, images over 20 million pixels,
-and decompression-bomb warnings/errors. It applies EXIF orientation, fits within
-1600 x 1600 without upscaling, composites transparency onto white, and atomically
-stores a fresh RGB JPEG at quality 85 without copied metadata.
+```powershell
+Get-Service -Name "*MySQL*"
+Start-Service -Name "MySQL84"
+```
 
-The protected `media.image` endpoint serves generated JPEG basenames at
-`/media/<kind>/<filename>` with strict validation and nosniff headers.
-`MAX_CONTENT_LENGTH=6 * 1024 * 1024` and a 413 recovery page complement the
-5 MiB per-file helper limit. Author deletion removes affected covers after the
-database cascade commits. Shared table and author-photo styles use both themes.
+From the repository root, connect using your `.env` settings. Replace `root` with your username:
 
-Book routes lock current records on writes, commit SQL before deleting old
-covers, and remove new files on rollback. Post-commit cleanup is best effort
-and logs failures. MySQL/filesystem operations are not one atomic transaction:
-a crash, ambiguous connection loss during commit, or cleanup failure can leave
-orphaned/missing files. Back up database/uploads together. For reconciliation,
-compare stored BOOK.cover_filename and AUTHOR.photo_filename values with the
-two upload folders, review differences, and only then remove confirmed orphans.
-No automatic cleanup worker is included.
+```powershell
+mysql --host=localhost --port=3306 --user=root --password
+```
 
-Local verification on 2026-10-23: 32 tests passed, two original setup MySQL tests
-were skipped; four book/author MySQL tests actually ran. Dependency checks and book
-desktop/mobile browser checks passed, including keyboard focus and missing-image
-fallback; the original shared browser checks passed too. CI opts into book MySQL/browser
-checks too; hosted CI has not been run in this session.
+For a **new catalog**, run inside the MySQL client:
 
-## Problem 1
+```sql
+SOURCE website/database/auth.sql;
+SOURCE problem2_DDL.sql;
+SOURCE problem2_DML.sql;
 
-`problem1_DDL.sql` defines COMPANY and `problem1_DML.sql` inserts three rows in
-each table. **The DDL drops and recreates `company`; executing it destroys any
-existing data in that database.** Run DDL before DML only when that reset is
-intended. `problem1_Answers.txt` contains the separate exercise answers;
-Problem 1 files were preserved during the books implementation.
+SELECT COUNT(*) AS authors FROM library.AUTHOR;
+SELECT COUNT(*) AS books FROM library.BOOK;
+EXIT;
+```
 
-Private `.env`, local sessions, `AGENTS.md`, and `design.md` are Git-ignored.
-Do not copy environment files or session storage from Lab 2.
+Expected: **3 authors, 6 books**. In DBeaver, execute the same three files in that order.
+
+<details>
+<summary>Existing catalog</summary>
+
+Skip library DDL/seeds if the tables already exist. Only if `AUTHOR.country` is missing, run this once:
+
+```sql
+SOURCE website/database/add_author_country.sql;
+```
+
+Existing countries become `Unknown`; update them through **Browse authors**.
+
+</details>
+
+<details>
+<summary>Problem 1 — separate from the website</summary>
+
+**The DDL deletes and recreates `company`. Preserve any existing data before running it.**
+
+Inside the MySQL client:
+
+```sql
+SOURCE problem1_DDL.sql;
+SOURCE problem1_DML.sql;
+
+SELECT COUNT(*) FROM company.EMPLOYEE;
+SELECT COUNT(*) FROM company.DEPARTMENT;
+SELECT COUNT(*) FROM company.PROJECT;
+```
+
+Expected: **3 rows per table**. Run the SQL blocks in [problem1_Answers.txt](problem1_Answers.txt) separately; do not `SOURCE` the text file. Q1.3 requires empty tables.
+
+</details>
+
+### Step 5 — Run Flask
+
+Back in the repository-root PowerShell terminal:
+
+```powershell
+.\.venv\Scripts\python.exe -m flask --app website/run.py check-db
+.\.venv\Scripts\python.exe -m flask --app website/run.py run
+```
+
+Open **http://127.0.0.1:5000** and register or log in. Stop Flask with **Ctrl+C**.
+
+<details>
+<summary>Tests</summary>
+
+```powershell
+.\.venv\Scripts\python.exe -m pip check
+.\.venv\Scripts\python.exe -m unittest discover -s website/tests -t website
+```
+
+Normal runs skip 11 optional MySQL checks.
+
+</details>
+
+## 4. Features
+
+| Category | Implemented features |
+| --- | --- |
+| Authentication and security | Registration, login/logout, hashed passwords, server-side sessions, protected pages/media, CSRF-protected writes, parameterized SQL, and escaped template output. |
+| Book management | Shared book table with ID, title, price, and author ID; add, edit, and delete books; author selector; validation; unchanged-update support; delete confirmation. |
+| Author management | Shared author table with ID, name, and country; add, edit, and delete authors; validation; confirmation before cascading book deletion; related photo/cover cleanup. |
+| Images | Optional book covers and author photos; preview and thumbnails; retain or replace images; JPG/JPEG, PNG, and WebP checks; 5 MiB/file, 6 MiB/request, and 20-million-pixel limits; normalized JPEG storage; protected serving; readable missing-image states; oversized-upload recovery. |
+| Database exercises, interface, and checks | Both SQL exercises and seeds; Q1.1–Q1.3 answers/output; separate authentication/catalog databases; light/dark themes; responsive tables/forms; keyboard navigation; forms usable without JavaScript; unit, real MySQL, browser, and CI checks. |
+
+## 5. Screenshots
+
+These are screenshots of the actual running application with disposable demo records. Covers and author avatars are illustrative demo assets; no private accounts or credentials are shown.
+
+### Browse books and authors
+
+| Books: six records with covers and author IDs | Authors: names, countries, and photos |
+| --- | --- |
+| ![Books table showing six demo books, cover thumbnails, prices, author IDs, and edit/delete actions](screenshots/books.png) | ![Authors table showing three demo authors, countries, photo thumbnails, and edit/delete actions](screenshots/authors.png) |
+
+### Edit records and images
+
+The same forms support creation; editing also shows the current image.
+
+| Book details and current cover | Author details, country, and current photo |
+| --- | --- |
+| ![Edit book form with title, price, author selector, current cover, and optional replacement upload](screenshots/book-form.png) | ![Edit author form with name, country, current photo, and optional replacement upload](screenshots/author-form.png) |
+
+### Confirm deletions
+
+| Remove one book | Remove an author and related books |
+| --- | --- |
+| ![Book deletion confirmation identifying the selected book and its cover removal](screenshots/delete-book.png) | ![Author deletion confirmation explaining removal of the author, related books, photo, and covers](screenshots/delete-author.png) |
+
+### Authentication and mobile dark theme
+
+| Log in | Responsive book form at 360 pixels |
+| --- | --- |
+| ![Library login page with email and password fields and a create-account link](screenshots/login.png) | ![Mobile dark-theme book edit form showing a cover, title, price, author selector, and upload field](screenshots/mobile-dark.png) |

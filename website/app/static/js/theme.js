@@ -1,5 +1,16 @@
 const root = document.documentElement;
 
+// Capture image errors even when they occur before DOMContentLoaded.
+document.addEventListener("error", event => {
+    const image = event.target;
+    if (image instanceof HTMLImageElement && image.dataset.fallback) {
+        const fallback = document.createElement("span");
+        fallback.className = "image-fallback";
+        fallback.textContent = image.dataset.fallback;
+        image.replaceWith(fallback);
+    }
+}, true);
+
 // Read before the stylesheet loads to avoid flashing the wrong saved theme.
 try {
     if (localStorage.getItem("library-theme") === "dark") root.dataset.theme = "dark";

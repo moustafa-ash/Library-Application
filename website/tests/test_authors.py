@@ -112,9 +112,46 @@ class AuthorTests(unittest.TestCase):
             session.pop("user_id")
         self.assertEqual(self.client.get(f"/media/authors/{name}").location, "/login")
 
+    def test_all_author_routes_require_login(self):
+        with self.client.session_transaction() as session:
+            session.pop("user_id")
+        with patch("app.authors.routes.get_connection") as connect:
+            for path in ("/authors/", "/authors/add", "/authors/1/edit", "/authors/1/delete"):
+                self.assertEqual(self.client.get(path).location, "/login")
+                if path != "/authors/":
+                    self.assertEqual(self.post(path).location, "/login")
+            connect.assert_not_called()
+
+    def test_failed_author_delete_retains_photo_and_covers(self):
+        self.post(photo=(upload().stream, "photo.png"))
+        photo = self.files("authors")[0]
+        self.cursor.fetchone.return_value = {**self.author, "photo_filename": photo.name}
+        covers = ["b" * 32 + ".jpg", "c" * 32 + ".jpg"]
+        folder = self.root / "uploads/books"
+        folder.mkdir()
+        for filename in covers:
+            (folder / filename).write_bytes(b"retained cover")
+        self.cursor.fetchall.return_value = [{"book_id": index, "cover_filename": filename}
+                                             for index, filename in enumerate(covers)]
+        def execute(sql, values=None):
+            if sql.startswith("DELETE FROM AUTHOR"):
+                raise pymysql.OperationalError(1205, "private SQL detail")
+        self.cursor.execute.side_effect = execute
+        self.connection.commit.reset_mock()
+        with self.assertLogs(self.app.logger, level="ERROR"):
+            response = self.post("/authors/1/delete")
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn(b"private SQL detail", response.data)
+        self.connection.rollback.assert_called_once()
+        self.connection.commit.assert_not_called()
+        self.assertTrue(photo.is_file())
+        self.assertTrue(all((folder / filename).is_file() for filename in covers))
+
     def test_request_size_recovery(self):
         response = self.client.post("/authors/add", data={"csrf_token": "token", "name": "Large photo",
             "photo": (io.BytesIO(b"x" * (6 * 1024 * 1024)), "too-large.jpg")},
             content_type="multipart/form-data")
         self.assertEqual(response.status_code, 413)
         self.assertIn(b"5 MiB", response.data)
+        # A rejected oversized body is never parsed; close the test client's spool.
+        response.request.input_stream.close()
