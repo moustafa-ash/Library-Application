@@ -52,8 +52,11 @@ def form(author_id=None):
                     abort(404)
             if request.method == "POST":
                 name = request.form.get("name", "").strip()
+                country = request.form.get("country", "").strip()
                 if not name or len(name) > 100:
                     errors.append("Name is required and must be at most 100 characters.")
+                if not country or len(country) > 100:
+                    errors.append("Country is required and must be at most 100 characters.")
                 if not errors:
                     old_photo = author["photo_filename"] if author else None
                     upload = request.files.get("photo")
@@ -62,9 +65,9 @@ def form(author_id=None):
                     filename = new_photo or old_photo
                     try:
                         if author is None:
-                            queries.insert_author(connection, name, filename)
+                            queries.insert_author(connection, name, country, filename)
                         else:
-                            queries.update_author(connection, author_id, name, filename)
+                            queries.update_author(connection, author_id, name, country, filename)
                         connection.commit()
                     except pymysql.MySQLError:
                         connection.rollback()
