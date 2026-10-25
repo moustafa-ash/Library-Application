@@ -70,13 +70,13 @@ feature and media integration. Items requiring live MySQL/browser evidence remai
 | MySQL cascade and file cleanup | Passed in CI | Disposable-MySQL test posts to the real author-delete route, removes one photo/two covers, and preserves another author and their files. |
 | Book desktop/mobile review | Previously passed with fixtures | Historical fixture browser checks; author pages and production media have not received browser review. |
 | Cover demo evidence | Fixture demo passed | Visually inspected `website/instance/book-checks/mobile-dark-edit.png` and `desktop-light-edit.png`; real MySQL with test-only login/media routes. |
-| Shared upload integration | Implemented; unit tests passed | Helper, author/media, request-limit, and book preview tests passed. Real MySQL cascade/file cleanup remains unverified. |
+| Shared upload integration | Passed in CI | Helper, author/media, request-limit, and book preview tests passed. The real author-delete route removed its photo and covers while preserving another author's files. |
 | CI | Passed on PR | Disposable MySQL tests and desktop/mobile browser checks passed on GitHub Actions. |
 
 ## Handoff / remaining prerequisites
 
-1. Run real author-cascade cleanup against a disposable database and review the
-   author pages in the browser at desktop/mobile sizes.
+1. Review author pages in the browser at desktop/mobile sizes, in both themes.
+   The disposable-MySQL author-delete and file-cleanup integration test now runs in CI.
 2. The image helper is ready for both kinds. Upload root defaults to the
    instance uploads directory; `UPLOAD_ROOT` can override it for tests/config.
 3. README contains setup, test commands, books/authors demo, image limits/storage,
