@@ -42,12 +42,14 @@ the checklist records completed implementation and remaining verification.
 3. Start MySQL. Existing Lab 2 users work without migration. On a new instance,
    execute `website/database/auth.sql` in DBeaver to create `registration.users`.
    This optional script does not drop databases or create to-do tables.
-   For the catalog, create `library` without dropping existing data.
-   `problem2_DDL.sql` creates the InnoDB AUTHOR table before BOOK and includes
-   the cascade foreign key. `problem2_DML.sql` inserts authors with IDs **1, 2, 3**
-   before six illustrative books. These are run-once seeds, not a reset or
-   migration script; check existing tables/rows before execution. If the tables
-   already exist, review additive changes instead of recreating them.
+   For a new catalog, create `library`, then run `problem2_DDL.sql` and
+   `problem2_DML.sql` once. The schema includes required author name/country
+   fields and the BOOK cascade foreign key; the seed script inserts three authors
+   before six illustrative books. These scripts are not resets or migrations.
+   For an existing catalog made before AUTHOR.country was added, run
+   `website/database/add_author_country.sql` once. It preserves rows and fills
+   the new required field with `Unknown`; update those countries in **Browse
+   authors**. Do not rerun the migration.
 
 4. Start the local application from the repository root:
 
@@ -94,8 +96,8 @@ service, and checks the shared pages with Chrome at desktop/mobile sizes.
 It needs no private `.env` or repository secrets. The browser test tool is
 installed only on the CI runner; it is not a Python application dependency.
 
-The normal local unittest command skips five opt-in MySQL tests (two setup,
-three books). To include the original setup tests, set `RUN_MYSQL_TESTS=1`,
+The normal local unittest command skips six opt-in MySQL tests (two setup,
+three book checks and one author-delete integration check). To include the original setup tests, set `RUN_MYSQL_TESTS=1`,
 `MYSQL_TEST_USER`, and `MYSQL_TEST_PASSWORD`;
 optionally set `MYSQL_TEST_HOST` and `MYSQL_TEST_PORT`. The account must be able
 to create/drop uniquely generated `library_setup_test_*` databases. Scripts are
@@ -166,7 +168,7 @@ two upload folders, review differences, and only then remove confirmed orphans.
 No automatic cleanup worker is included.
 
 Local verification on 2026-10-23: 32 tests passed, two original setup MySQL tests
-were skipped; three book MySQL tests actually ran. Dependency checks and book
+were skipped; four book/author MySQL tests actually ran. Dependency checks and book
 desktop/mobile browser checks passed, including keyboard focus and missing-image
 fallback; the original shared browser checks passed too. CI opts into book MySQL/browser
 checks too; hosted CI has not been run in this session.
