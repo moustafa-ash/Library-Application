@@ -22,7 +22,7 @@ class AuthorTests(unittest.TestCase):
         self.connection = MagicMock()
         self.connection.__enter__.return_value = self.connection
         self.cursor = self.connection.cursor.return_value.__enter__.return_value
-        self.author = {"author_id": 1, "name": "Author One", "photo_filename": None}
+        self.author = {"author_id": 1, "name": "Author One", "country": "Egypt", "photo_filename": None}
         self.cursor.fetchone.return_value = self.author.copy()
         self.cursor.fetchall.return_value = []
         patcher = patch("app.authors.routes.get_connection", return_value=self.connection)
@@ -32,7 +32,7 @@ class AuthorTests(unittest.TestCase):
             session.update(user_id=1, name="Reader", csrf_token="token")
 
     def post(self, path="/authors/add", **values):
-        return self.client.post(path, data={"csrf_token": "token", "name": "  Author One  ", **values})
+        return self.client.post(path, data={"csrf_token": "token", "name": "  Author One  ", "country": " Egypt ", **values})
 
     def files(self, kind):
         folder = self.root / "uploads" / kind
@@ -46,12 +46,13 @@ class AuthorTests(unittest.TestCase):
         self.assertEqual(response.location, "/authors/")
         sql, params = self.cursor.execute.call_args.args
         self.assertIn("INSERT INTO AUTHOR", sql)
-        self.assertEqual(params, ("Author One", None))
+        self.assertEqual(params, ("Author One", "Egypt", None))
 
     def test_list_escapes_content_and_unknown_record_is_404(self):
         self.cursor.fetchall.return_value = [{**self.author, "name": "<script>x</script>"}]
         page = self.client.get("/authors/")
         self.assertIn(b"&lt;script&gt;x&lt;/script&gt;", page.data)
+        self.assertIn(b"Egypt", page.data)
         self.assertIn(b"No photo", page.data)
         self.cursor.fetchone.return_value = None
         self.assertEqual(self.client.get("/authors/99/edit").status_code, 404)
@@ -62,6 +63,8 @@ class AuthorTests(unittest.TestCase):
         for invalid in ("", "  ", "x" * 101):
             self.assertEqual(self.post(name=invalid).status_code, 200)
         self.connection.commit.assert_not_called()
+        for invalid_country in ("", "  ", "x" * 101):
+            self.assertEqual(self.post(country=invalid_country).status_code, 200)
         self.assertEqual(self.post(photo=(io.BytesIO(b"bad"), "bad.png")).status_code, 200)
         self.assertEqual(self.files("authors"), [])
         self.assertEqual(self.post(photo=(upload().stream, "one.png")).status_code, 302)
