@@ -14,7 +14,7 @@ feature and media integration. Items requiring live MySQL/browser evidence remai
 
 ## Required Part II before bonus
 
-- [x] Implement AUTHOR/BOOK DDL and the cascade foreign key.
+- [x] Implement AUTHOR/BOOK DDL, required author country, and the cascade foreign key.
 - [x] Insert at least three authors and six books in the run-once seed script.
 - [x] Complete authenticated books/authors tables and add/edit/delete flows, including visible book `author_id`.
 - [ ] Verify validation, nonexistent records, CSRF, authentication, and no-JavaScript forms.
@@ -38,11 +38,11 @@ feature and media integration. Items requiring live MySQL/browser evidence remai
 
 ## Ibrahim: authors and photos
 
-- [x] Add nullable `photo_filename` to AUTHOR and retain NULL filenames in seed rows.
+- [x] Add required AUTHOR.country and nullable `photo_filename`; seed all three authors with countries.
 - [x] Add optional photo inputs, current-image previews, accessible thumbnails, and readable fallbacks.
 - [x] Add author CRUD routes, parameterized queries, validation, and feature tests.
 - [x] Run author/media unit tests for create/update/delete, image lifecycle, CSRF, protected media, and request-size recovery.
-- [ ] Run a real photo-upload/cascade demonstration against disposable MySQL.
+- [x] Add a disposable-MySQL test for author deletion, photo/cover cleanup, and preservation of another author’s data/files.
 
 ## Shared media integration
 
@@ -54,7 +54,7 @@ feature and media integration. Items requiring live MySQL/browser evidence remai
 ## Joint acceptance and handoff
 
 - [x] Run the full discovered suite and `pip check` after author/media integration.
-- [ ] Run the real MySQL cascade test using disposable rows/database and temporary uploads; prove unrelated data is preserved.
+- [x] Run the real author-delete MySQL integration test against disposable rows/database and temporary uploads in CI; assert unrelated data/files are preserved.
 - [ ] Check desktop and 360px mobile, both themes, keyboard use, table scrolling, errors, missing images, and no-JavaScript forms.
 - [x] Update README with setup, upload limits, local storage/backup, new-database scripts, and demo steps; keep credentials/uploads out of Git.
 - [x] Record current unit test, dependency, and local SQL evidence; leave live cascade/browser items unchecked.
@@ -67,11 +67,11 @@ feature and media integration. Items requiring live MySQL/browser evidence remai
 | Unit regression suite | Passed | `python -m unittest discover -s website/tests -t website`: 41 tests, 5 opt-in MySQL tests skipped. Author/media tests passed. |
 | Dependencies | Passed | `pip check`: no broken requirements. |
 | Local database and app | Passed by user | Workbench output showed three authors and six books inserted; user reported the local app runs. |
-| MySQL cascade and file cleanup | Partial | Real FK cascade was previously checked. Real author photo/cascaded-cover cleanup remains unverified. |
+| MySQL cascade and file cleanup | Passed in CI | Disposable-MySQL test posts to the real author-delete route, removes one photo/two covers, and preserves another author and their files. |
 | Book desktop/mobile review | Previously passed with fixtures | Historical fixture browser checks; author pages and production media have not received browser review. |
 | Cover demo evidence | Fixture demo passed | Visually inspected `website/instance/book-checks/mobile-dark-edit.png` and `desktop-light-edit.png`; real MySQL with test-only login/media routes. |
 | Shared upload integration | Implemented; unit tests passed | Helper, author/media, request-limit, and book preview tests passed. Real MySQL cascade/file cleanup remains unverified. |
-| CI | Configured, not run remotely | Workflow enables book MySQL tests and book browser checks; local checks passed. |
+| CI | Passed on PR | Disposable MySQL tests and desktop/mobile browser checks passed on GitHub Actions. |
 
 ## Handoff / remaining prerequisites
 
