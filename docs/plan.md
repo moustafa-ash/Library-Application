@@ -1,9 +1,9 @@
 # Library application and image bonus plan
 
-**Status (2026-10-23):** Moustafa's books/helper implementation was explicitly
-authorized and completed within his scope; see [checklist.md](checklist.md) for
-current evidence and pending Ibrahim integration. Starting-point statements
-below describe the original design baseline, not the current implementation.
+**Status (2026-10-25):** The author feature is integrated. The pull request review
+required the AUTHOR.country field and a real disposable-MySQL author-delete test;
+see [checklist.md](checklist.md) for current evidence and remaining browser review.
+Starting-point statements below describe the original design baseline.
 
 **Goal:** finish Part II's books/authors CRUD, then support optional book covers
 and author photos without changing the existing authentication system.
@@ -23,8 +23,8 @@ decisions, not additional assignment requirements.
    light/dark pages are implemented. The project has a local `.venv` and pinned
    `website/requirements.txt`. Existing tests cover shared setup, not uploads.
 2. Implement `problem2_DDL.sql` and `problem2_DML.sql`, with AUTHOR before BOOK,
-   `BOOK.author_id -> AUTHOR.author_id ON DELETE CASCADE`, and at least three
-   authors and six books. The library database has not yet been created in this
+   `AUTHOR(author_id, name, country)` with required country, `BOOK.author_id ->
+   AUTHOR.author_id ON DELETE CASCADE`, and at least three authors and six books. The library database has not yet been created in this
    project. Keep `registration.users` separate.
 3. Finish both required CRUD modules and their tests before bonus integration.
    Show the assignment's fields, including book `author_id`; protect every route
@@ -39,7 +39,7 @@ decisions, not additional assignment requirements.
 
 | Area | Decision |
 | --- | --- |
-| Schema | Add nullable `BOOK.cover_filename VARCHAR(36)` and `AUTHOR.photo_filename VARCHAR(36)`. Keep all required fields and only two library tables. Seed filenames are NULL. |
+| Schema | Require `AUTHOR.country VARCHAR(100)` alongside author ID/name. Add nullable `BOOK.cover_filename VARCHAR(36)` and `AUTHOR.photo_filename VARCHAR(36)`. Keep only two library tables; seed image filenames are NULL. |
 | Files | `website/instance/uploads/books/` and `website/instance/uploads/authors/`; both are already covered by the instance-directory Git exclusion. Store only a generated basename in MySQL. |
 | Filenames | `uuid4().hex + '.jpg'` (36 characters). Never use the submitted filename or accept a filesystem path from a form. |
 | Shared helper | Create `website/app/images.py`: `save_image(upload, kind) -> filename` and `delete_image(filename, kind) -> None`; allow only `kind='books'` or `'authors'`. Invalid images raise `ValueError`; storage failures raise `OSError`. Deletion validates the generated basename and never escapes the selected directory. |
@@ -55,10 +55,12 @@ file. Pillow is planned, not currently installed for this bonus. No cloud
 storage, external image service, cropping editor, gallery, or image-removal
 control is required. Users can replace an image or delete its record.
 
-The image columns are an optional schema extension for the bonus. Because the
-library DDL is still empty, include them in its first implementation. If a
-teammate has already populated a library database by then, use reviewed additive
-ALTER statements that preserve rows; do not reset it to add these columns.
+The image columns are optional schema extensions for the bonus; author country
+is a required catalog field. New databases get country from `problem2_DDL.sql`.
+For an existing database created before country was added, run
+`website/database/add_author_country.sql` once. It adds a non-null country with
+a temporary `Unknown` value for existing rows and preserves all records; update
+those values in the app. Never reset the database to apply this change.
 
 ## 3. Upload rules and user experience
 

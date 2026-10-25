@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if author else 'Add' }} author{% endblock %}
+{% block content %}
+<section class="error-sheet" aria-labelledby="author-heading"><h1 id="author-heading">{{ 'Edit' if author else 'Add' }} author</h1><p>Enter the author’s name, country, and optional photo.</p>
+{% if author and author.photo_filename %}{% if media_available %}<img class="author-preview" src="{{ url_for('media.image', kind='authors', filename=author.photo_filename) }}" alt="Current photo of {{ author.name }}" width="160" height="160">{% else %}<p>No photo preview available until media integration.</p>{% endif %}{% endif %}
+<form method="post" enctype="multipart/form-data"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<div class="field"><label for="name">Name</label><input id="name" name="name" maxlength="100" required value="{{ request.form.get('name', author.name if author else '') }}"></div>
+<div class="field"><label for="country">Country</label><input id="country" name="country" maxlength="100" required value="{{ request.form.get('country', author.country if author else '') }}"></div>
+<div class="field"><label for="photo">Photo (optional)</label><input id="photo" name="photo" type="file" accept=".jpg,.jpeg,.png,.webp" aria-describedby="photo-help"><p id="photo-help" class="field-help">JPG, PNG, or WebP; at most 5 MiB and 20 million pixels. Leave empty to keep the current photo. After an error, select the file again.</p></div>
+<ul class="form-errors" role="alert">{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul><div class="recovery-actions"><button class="button button-primary" type="submit">Save author</button><a class="button button-outline" href="{{ url_for('authors.index') }}">Cancel</a></div></form></section>
+{% endblock %}

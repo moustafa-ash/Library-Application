@@ -6,5 +6,6 @@
     <h1 id="library-heading">Your library</h1>
     <p>Welcome, {{ session.get('name') }}.</p>
     <a class="button button-primary" href="{{ url_for('books.index') }}">Browse books</a>
+    <a class="button button-outline" href="{{ url_for('authors.index') }}">Browse authors</a>
 </section>
 {% endblock %}

@@ -1,4 +1,4 @@
-"""Opt-in real BOOK checks; AUTHOR exists only as a disposable test fixture."""
+"""Opt-in real BOOK/AUTHOR checks using disposable catalog databases."""
 
 from decimal import Decimal
 import os
@@ -13,6 +13,7 @@ import pymysql
 from app import create_app
 from app.config import load_config, validate_config
 from app.db import get_connection
+from app.images import save_image
 from tests.test_images import upload
 
 
@@ -37,11 +38,6 @@ class BookMySQLTests(unittest.TestCase):
         with self.admin.cursor() as cursor:
             cursor.execute(f"CREATE DATABASE `{self.database}` CHARACTER SET utf8mb4")
             cursor.execute(f"USE `{self.database}`")
-            # Fixture only: does not implement Ibrahim's production schema or seed work.
-            cursor.execute("CREATE TABLE AUTHOR (author_id INT PRIMARY KEY AUTO_INCREMENT, "
-                           "name VARCHAR(100) NOT NULL, country VARCHAR(100)) ENGINE=InnoDB")
-            cursor.execute("INSERT INTO AUTHOR VALUES (1, 'Test author A', 'Test'), "
-                           "(2, 'Test author B', 'Test'), (3, 'Test author C', 'Test')")
             for name in ("problem2_DDL.sql", "problem2_DML.sql"):
                 script = (Path(__file__).resolve().parents[2] / name).read_text(encoding="utf-8")
                 script = re.sub(r"--[^\n]*", "", script)
@@ -113,3 +109,47 @@ class BookMySQLTests(unittest.TestCase):
             self.assertEqual(response.status_code, 200)
         self.assertEqual(len(self.rows("SELECT * FROM BOOK")), 6)
         self.assertEqual(list((self.root / "uploads/books").glob("*")), [])
+
+    def test_real_author_delete_cleans_target_assets_and_preserves_other_author(self):
+        with self.app.app_context():
+            target_photo = save_image(upload(), "authors")
+            other_photo = save_image(upload(), "authors")
+            target_covers = [save_image(upload(), "books") for _ in range(2)]
+            other_cover = save_image(upload(), "books")
+
+        target_books = self.rows(
+            "SELECT book_id FROM BOOK WHERE author_id = %s ORDER BY book_id", (1,))
+        other_books = self.rows(
+            "SELECT book_id FROM BOOK WHERE author_id = %s ORDER BY book_id", (2,))
+        self.assertGreaterEqual(len(target_books), 2)
+        self.assertGreaterEqual(len(other_books), 1)
+
+        with self.app.app_context(), get_connection() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute("UPDATE AUTHOR SET photo_filename = %s WHERE author_id = %s",
+                               (target_photo, 1))
+                cursor.execute("UPDATE AUTHOR SET photo_filename = %s WHERE author_id = %s",
+                               (other_photo, 2))
+                for book, cover in zip(target_books[:2], target_covers):
+                    cursor.execute("UPDATE BOOK SET cover_filename = %s WHERE book_id = %s",
+                                   (cover, book["book_id"]))
+                cursor.execute("UPDATE BOOK SET cover_filename = %s WHERE book_id = %s",
+                               (other_cover, other_books[0]["book_id"]))
+            connection.commit()
+
+        response = self.client.post("/authors/1/delete", data={"csrf_token": "token"})
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(self.rows("SELECT author_id FROM AUTHOR WHERE author_id = %s", (1,)))
+        self.assertEqual(len(self.rows("SELECT book_id FROM BOOK WHERE author_id = %s", (1,))), 0)
+        self.assertEqual(len(self.rows("SELECT book_id FROM BOOK WHERE author_id = %s", (2,))),
+                         len(other_books))
+        self.assertEqual(self.rows("SELECT photo_filename FROM AUTHOR WHERE author_id = %s", (2,))[0]
+                         ["photo_filename"], other_photo)
+        self.assertEqual(self.rows("SELECT cover_filename FROM BOOK WHERE book_id = %s",
+                                   (other_books[0]["book_id"],))[0]["cover_filename"], other_cover)
+
+        self.assertFalse((self.root / "uploads/authors" / target_photo).exists())
+        self.assertFalse((self.root / "uploads/books" / target_covers[0]).exists())
+        self.assertFalse((self.root / "uploads/books" / target_covers[1]).exists())
+        self.assertTrue((self.root / "uploads/authors" / other_photo).is_file())
+        self.assertTrue((self.root / "uploads/books" / other_cover).is_file())

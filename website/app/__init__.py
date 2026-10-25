@@ -7,8 +7,10 @@ from flask_session import Session
 
 from . import db
 from .auth import auth, login_required
+from .authors import authors
 from .books import books
 from .config import load_config, validate_config
+from .media import media
 
 
 def create_app(test_config=None):
@@ -26,6 +28,10 @@ def create_app(test_config=None):
     db.init_app(app)
     app.register_blueprint(auth)
     app.register_blueprint(books)
+    app.register_blueprint(authors)
+    app.register_blueprint(media)
+    if app.config.get("MAX_CONTENT_LENGTH") is None:
+        app.config["MAX_CONTENT_LENGTH"] = 6 * 1024 * 1024
 
     @app.before_request
     def check_csrf_token():
@@ -60,6 +66,13 @@ def create_app(test_config=None):
             heading="This page is unavailable",
             message="The link may be incorrect. Return to your library to continue.",
         ), 404
+
+    @app.errorhandler(413)
+    def request_too_large(error):
+        return render_template(
+            "error.html", code=413, heading="Upload is too large",
+            message="Choose an image no larger than 5 MiB. The complete form request must be under 6 MiB.",
+        ), 413
 
     @app.errorhandler(405)
     def method_not_allowed(error):
