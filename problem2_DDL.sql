@@ -5,6 +5,7 @@ USE library;
 CREATE TABLE AUTHOR (
     author_id INT NOT NULL AUTO_INCREMENT,
     name VARCHAR(100) NOT NULL,
+    country VARCHAR(100) NOT NULL,
     photo_filename VARCHAR(36) NULL,
     PRIMARY KEY (author_id)
 ) ENGINE=InnoDB;
